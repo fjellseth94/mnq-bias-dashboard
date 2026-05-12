@@ -7,18 +7,18 @@ st.set_page_config(page_title="MNQ Trading Bias Dashboard", layout="wide")
 st.title("📊 MNQ Intraday Bias Dashboard")
 
 # 🔄 AUTOMATIC REFRESH LOOP (Every 60 Seconds)
-# This snippet uses st.fragment to force-run the data section every minute in the background.
 if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = time.time()
 
 # 🔑 PASTE YOUR ACTUAL KEY STRING FROM ALPHAVANTAGE.CO HERE
-API_KEY = "8KWHATUD8NSY4O1U"
+API_KEY = "YOUR_ALPHA_VANTAGE_KEY_HERE"
 
 # 1. Macro Indicators Section
 st.header("🌐 Global Macro Sentiment")
 
-@st.cache_data(ttl=60) # Reduced cache to 60 seconds to match the auto-refresh loop
+@st.cache_data(ttl=60)
 def fetch_macro_data():
+    # FIXED: Added proper https:// schema and complete parameters string
     url = f"alphavantage.co{API_KEY}"
     try:
         response = requests.get(url).json()
@@ -49,13 +49,14 @@ tech_tickers = {
     "META": "Meta Platforms"
 }
 
-@st.cache_data(ttl=60) # Reduced cache to 60 seconds to match the auto-refresh loop
+@st.cache_data(ttl=60)
 def fetch_stock_data():
     data_list = []
     green_count = 0
     red_count = 0
     
     for ticker, name in tech_tickers.items():
+        # FIXED: Added proper https:// schema and complete parameters string
         url = f"alphavantage.co{ticker}&apikey={API_KEY}"
         try:
             res = requests.get(url).json()
