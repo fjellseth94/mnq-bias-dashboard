@@ -10,23 +10,24 @@ st.title("📊 MNQ Intraday Bias Dashboard")
 if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = time.time()
 
-# 🔑 PASTE YOUR ACTUAL KEY STRING FROM ALPHAVANTAGE.CO HERE
-API_KEY = "8KWHATUD8NSY4O1U"
+# 🔑 PASTE YOUR FREE FINNHUB API KEY HERE
+API_KEY = "d81g1c9r01qler4i6qkgd81g1c9r01qler4i6ql0"
 
 # 1. Macro Indicators Section
 st.header("🌐 Global Macro Sentiment")
 
 @st.cache_data(ttl=60)
 def fetch_macro_data():
-    # FIXED: Added proper https:// schema and complete parameters string
-    url = f"alphavantage.co{API_KEY}"
+    # Fetching US 10-Year Treasury Yield via Finnhub indices tracking
+    url = f"finnhub.io^TNX&token={API_KEY}"
     try:
-        response = requests.get(url).json()
-        if "data" in response and len(response["data"]) >= 2:
-            latest_val = float(response["data"][0]["value"])
-            prev_val = float(response["data"][1]["value"])
-            return latest_val, (latest_val - prev_val)
-    except Exception as e:
+        res = requests.get(url).json()
+        if "c" in res and res["c"] != 0:
+            price_now = float(res["c"])
+            prev_close = float(res["pc"])
+            pct_change = ((price_now - prev_close) / prev_close) * 100
+            return price_now, pct_change
+    except Exception:
         pass
     return None, None
 
@@ -35,7 +36,7 @@ curr_yield, yield_chg = fetch_macro_data()
 if curr_yield is not None:
     st.metric(label="US 10-Year Treasury Yield", value=f"{curr_yield:.2f}%", delta=f"{yield_chg:+.2f}%")
 else:
-    st.warning("Bond macro system data currently initializing or loading...")
+    st.warning("Bond macro data initializing or loading...")
 
 # 2. Big Tech Watchlist Section
 st.header("🍏 Big Tech Market Weight (Nasdaq-100 Drivers)")
@@ -45,7 +46,7 @@ tech_tickers = {
     "AAPL": "Apple",
     "NVDA": "Nvidia",
     "AMZN": "Amazon",
-    "GOOGL": "Alphabet",
+    "GOOG": "Alphabet",
     "META": "Meta Platforms"
 }
 
@@ -56,18 +57,16 @@ def fetch_stock_data():
     red_count = 0
     
     for ticker, name in tech_tickers.items():
-        # FIXED: Added proper https:// schema and complete parameters string
-        url = f"alphavantage.co{ticker}&apikey={API_KEY}"
+        url = f"finnhub.io{ticker}&token={API_KEY}"
         try:
             res = requests.get(url).json()
-            if "Global Quote" in res and res["Global Quote"]:
-                quote = res["Global Quote"]
-                price_now = float(quote.get("05. price", 0))
-                pct_str = quote.get("10. change percent", "0%").replace("%", "")
-                pct_change = float(pct_str) if pct_str is not None else 0.0
+            if "c" in res and res["c"] != 0:
+                price_now = float(res["c"])
+                prev_close = float(res["pc"])
+                pct_change = ((price_now - prev_close) / prev_close) * 100
             else:
                 price_now, pct_change = 0.0, 0.0
-        except Exception as e:
+        except Exception:
             price_now, pct_change = 0.0, 0.0
 
         if pct_change > 0:
@@ -79,12 +78,18 @@ def fetch_stock_data():
             "Ticker": ticker,
             "Company": name,
             "Price": f"${price_now:.2f}",
-            "Daily Change (%)": f"{pct_change:+.2f}%"
+            "Daily Change (%)": f"{pct_change:+.2f}%",
+            "raw_pct": pct_change
         })
     return pd.DataFrame(data_list), green_count, red_count
 
 df, green_count, red_count = fetch_stock_data()
-st.dataframe(df, use_container_width=True)
+
+# Render table layout without the annoying left-side index numbers (0, 1, 2...)
+if not df.empty:
+    st.dataframe(df[["Ticker", "Company", "Price", "Daily Change (%)"]], use_container_width=True, hide_index=True)
+else:
+    st.error("Market data feed unavailable.")
 
 # 3. Market Bias System Execution Output
 st.header("⚡ Intraday MNQ Directional Bias")
@@ -99,6 +104,6 @@ elif red_count >= 4:
 else:
     st.warning("⚪ CHOPPY / RANGE-BOUND: Mixed market signals. Scalp the ranges or stand aside.")
 
-# 🔄 Trigger the continuous 60-second page rerun loop
+# 🔄 Background continuous 60-second page rerun loop
 time.sleep(60)
 st.rerun()
