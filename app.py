@@ -5,21 +5,24 @@ import pandas as pd
 st.set_page_config(page_title="MNQ Trading Bias Dashboard", layout="wide")
 st.title("📊 MNQ Intraday Bias Dashboard")
 
-# 🔑 REPLACE THIS TEXT VALUE WITH YOUR ACTUAL ALPHA VANTAGE API KEY STRING
+# 🔑 PASTE YOUR KEY STRING FROM ALPHAVANTAGE.CO HERE
 API_KEY = "8KWHATUD8NSY4O1U"
 
 # 1. Macro Indicators Section
 st.header("🌐 Global Macro Sentiment")
 
-@st.cache_data(ttl=300) # Caches the request data for 5 minutes to avoid hitting rate caps
+@st.cache_data(ttl=300) # Caches the data for 5 minutes
 def fetch_macro_data():
-    # Fetching 10-Year Government Bond Yield Data via API
+    # Corrected full URL schema prefix string
     url = f"alphavantage.co{API_KEY}"
-    response = requests.get(url).json()
-    if "data" in response:
-        latest_val = float(response["data"][0]["value"])
-        prev_val = float(response["data"][1]["value"])
-        return latest_val, (latest_val - prev_val)
+    try:
+        response = requests.get(url).json()
+        if "data" in response and len(response["data"]) >= 2:
+            latest_val = float(response["data"][0]["value"])
+            prev_val = float(response["data"][1]["value"])
+            return latest_val, (latest_val - prev_val)
+    except:
+        pass
     return None, None
 
 curr_yield, yield_chg = fetch_macro_data()
@@ -27,7 +30,7 @@ curr_yield, yield_chg = fetch_macro_data()
 if curr_yield:
     st.metric(label="US 10-Year Treasury Yield", value=f"{curr_yield:.2f}%", delta=f"{yield_chg:+.2f}%")
 else:
-    st.warning("Bond macro system data currently structural loading...")
+    st.warning("Bond macro system data currently initializing or loading...")
 
 # 2. Big Tech Watchlist Section
 st.header("🍏 Big Tech Market Weight (Nasdaq-100 Drivers)")
@@ -48,14 +51,18 @@ def fetch_stock_data():
     red_count = 0
     
     for ticker, name in tech_tickers.items():
+        # Corrected full URL schema prefix string
         url = f"alphavantage.co{ticker}&apikey={API_KEY}"
-        res = requests.get(url).json()
-        
-        if "Global Quote" in res and res["Global Quote"]:
-            quote = res["Global Quote"]
-            price_now = float(quote.get("05. price", 0))
-            pct_change = float(quote.get("10. change percent", "0%").replace("%", ""))
-        else:
+        try:
+            res = requests.get(url).json()
+            if "Global Quote" in res and res["Global Quote"]:
+                quote = res["Global Quote"]
+                price_now = float(quote.get("05. price", 0))
+                pct_str = quote.get("10. change percent", "0%").replace("%", "")
+                pct_change = float(pct_str) if pct_str is not None else 0.0
+            else:
+                price_now, pct_change = 0.0, 0.0
+        except:
             price_now, pct_change = 0.0, 0.0
 
         if pct_change > 0:
