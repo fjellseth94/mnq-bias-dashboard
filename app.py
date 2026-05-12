@@ -19,7 +19,7 @@ st.header("🌐 Global Macro Sentiment")
 @st.cache_data(ttl=60)
 def fetch_macro_data():
     # Fetching US 10-Year Treasury Yield via Finnhub indices tracking
-    url = f"finnhub.io^TNX&token={API_KEY}"
+    url = f"https://finnhub.io^TNX&token={API_KEY}"
     try:
         res = requests.get(url).json()
         if "c" in res and res["c"] != 0:
@@ -57,7 +57,7 @@ def fetch_stock_data():
     red_count = 0
     
     for ticker, name in tech_tickers.items():
-        url = f"finnhub.io{ticker}&token={API_KEY}"
+        url = f"https://finnhub.io{ticker}&token={API_KEY}"
         try:
             res = requests.get(url).json()
             if "c" in res and res["c"] != 0:
