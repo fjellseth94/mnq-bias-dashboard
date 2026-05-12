@@ -11,7 +11,7 @@ if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = time.time()
 
 # 🔑 PASTE YOUR ACTUAL KEY STRING FROM ALPHAVANTAGE.CO HERE
-API_KEY = "YOUR_ALPHA_VANTAGE_KEY_HERE"
+API_KEY = "8KWHATUD8NSY4O1U"
 
 # 1. Macro Indicators Section
 st.header("🌐 Global Macro Sentiment")
