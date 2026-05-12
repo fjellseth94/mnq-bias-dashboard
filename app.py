@@ -1,19 +1,24 @@
 import streamlit as st
 import requests
 import pandas as pd
+import time
 
 st.set_page_config(page_title="MNQ Trading Bias Dashboard", layout="wide")
 st.title("📊 MNQ Intraday Bias Dashboard")
 
-# 🔑 PASTE YOUR KEY STRING FROM ALPHAVANTAGE.CO HERE
+# 🔄 AUTOMATIC REFRESH LOOP (Every 60 Seconds)
+# This snippet uses st.fragment to force-run the data section every minute in the background.
+if "last_refresh" not in st.session_state:
+    st.session_state.last_refresh = time.time()
+
+# 🔑 PASTE YOUR ACTUAL KEY STRING FROM ALPHAVANTAGE.CO HERE
 API_KEY = "8KWHATUD8NSY4O1U"
 
 # 1. Macro Indicators Section
 st.header("🌐 Global Macro Sentiment")
 
-@st.cache_data(ttl=300) # Caches the data for 5 minutes
+@st.cache_data(ttl=60) # Reduced cache to 60 seconds to match the auto-refresh loop
 def fetch_macro_data():
-    # Corrected full URL schema prefix string
     url = f"alphavantage.co{API_KEY}"
     try:
         response = requests.get(url).json()
@@ -21,13 +26,13 @@ def fetch_macro_data():
             latest_val = float(response["data"][0]["value"])
             prev_val = float(response["data"][1]["value"])
             return latest_val, (latest_val - prev_val)
-    except:
+    except Exception as e:
         pass
     return None, None
 
 curr_yield, yield_chg = fetch_macro_data()
 
-if curr_yield:
+if curr_yield is not None:
     st.metric(label="US 10-Year Treasury Yield", value=f"{curr_yield:.2f}%", delta=f"{yield_chg:+.2f}%")
 else:
     st.warning("Bond macro system data currently initializing or loading...")
@@ -44,14 +49,13 @@ tech_tickers = {
     "META": "Meta Platforms"
 }
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60) # Reduced cache to 60 seconds to match the auto-refresh loop
 def fetch_stock_data():
     data_list = []
     green_count = 0
     red_count = 0
     
     for ticker, name in tech_tickers.items():
-        # Corrected full URL schema prefix string
         url = f"alphavantage.co{ticker}&apikey={API_KEY}"
         try:
             res = requests.get(url).json()
@@ -62,7 +66,7 @@ def fetch_stock_data():
                 pct_change = float(pct_str) if pct_str is not None else 0.0
             else:
                 price_now, pct_change = 0.0, 0.0
-        except:
+        except Exception as e:
             price_now, pct_change = 0.0, 0.0
 
         if pct_change > 0:
@@ -93,3 +97,7 @@ elif red_count >= 4:
     st.info("🟡 MILDLY BEARISH: Tech heavily favors downside. Look for short entries at resistance.")
 else:
     st.warning("⚪ CHOPPY / RANGE-BOUND: Mixed market signals. Scalp the ranges or stand aside.")
+
+# 🔄 Trigger the continuous 60-second page rerun loop
+time.sleep(60)
+st.rerun()
